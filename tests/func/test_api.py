@@ -1,4 +1,5 @@
 import os
+from textwrap import dedent
 
 import pytest
 from funcy import first, get_in
@@ -219,3 +220,53 @@ def test_open_from_remote(tmp_dir, erepo_dir, cloud, local_cloud):
         os.path.join("dir", "foo"), repo=erepo_dir.as_uri(), remote="other"
     ) as fd:
         assert fd.read() == "foo content"
+
+
+def test_get_params(tmp_dir, dvc):
+    tmp_dir.gen("params.yaml", "foo: 1")
+    tmp_dir.gen("params.json", '{"bar": 2}')
+
+    dvc.run(
+        name="stage",
+        cmd="echo read-params",
+        params=["foo", "params.json:bar"],
+    )
+
+    params = api.get_params("stage")
+    assert params == {"foo": 1, "bar": 2}
+
+
+def test_get_params_nested(tmp_dir, dvc):
+    (tmp_dir / "params.yaml").dump({"foo": {"bar": 1}})
+
+    dvc.run(name="stage", cmd="echo read-params", params=["foo.bar"])
+
+    assert api.get_params("stage") == {"foo": {"bar": 1}}
+    assert api.get_params("stage", flatten=True) == {"foo.bar": 1}
+
+
+def test_get_params_during_stage(tmp_dir, dvc):
+    (tmp_dir / "params.yaml").dump({"foo": {"bar": 1}})
+    (tmp_dir / "params.json").dump({"bar": 2})
+
+    tmp_dir.gen(
+        "merge.py",
+        dedent(
+            """
+            import json
+            from dvc import api
+            with open("merged.json", "w") as f:
+                json.dump(api.get_params("merge"), f)
+        """
+        ),
+    )
+    dvc.stage.add(
+        name="merge",
+        cmd="python merge.py",
+        params=["foo.bar", {"params.json": ["bar"]}],
+        outs=["merged.json"],
+    )
+
+    dvc.reproduce()
+
+    assert (tmp_dir / "merged.json").parse() == {"foo": {"bar": 1}, "bar": 2}

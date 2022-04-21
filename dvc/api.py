@@ -1,8 +1,10 @@
 import os
 from contextlib import _GeneratorContextManager as GCM
+from typing import Dict
 
 from funcy import reraise
 
+from dvc.dependency import ParamsDependency
 from dvc.exceptions import OutputNotFoundError, PathMissingError
 from dvc.repo import Repo
 
@@ -89,6 +91,24 @@ def read(path, repo=None, rev=None, remote=None, mode="r", encoding=None):
         path, repo=repo, rev=rev, remote=remote, mode=mode, encoding=encoding
     ) as fd:
         return fd.read()
+
+
+def get_params(stage: str, flatten: bool = False) -> Dict:
+    """Returns all the params associated with the given `stage`.
+
+    Args:
+        stage (str): Name of the dvc.yaml stage to get params from.
+        flatten (bool, optional): Whether to return flattened dict
+        or not. Defaults False.
+        If True, {"foo.bar": 1} would be returned, instead of
+        {"foo": {"bar": 1}}
+    """
+    repo = Repo()
+    params = {}
+    for dep in repo.stage.load_one(name=stage).deps:
+        if isinstance(dep, ParamsDependency):
+            params.update(dep.read_params(flatten=flatten))
+    return params
 
 
 def make_checkpoint():
