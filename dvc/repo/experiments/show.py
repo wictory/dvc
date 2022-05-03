@@ -49,6 +49,7 @@ def _collect_experiment_commit(
                 "hash": dep.hash_info.value,
                 "size": dep.meta.size,
                 "nfiles": dep.meta.nfiles,
+                "fs_path": dep.fs_path,
             }
             for dep in repo.index.deps
             if not isinstance(dep, (ParamsDependency, RepoDependency))
@@ -59,6 +60,9 @@ def _collect_experiment_commit(
                 "hash": out.hash_info.value,
                 "size": out.meta.size,
                 "nfiles": out.meta.nfiles,
+                "fs_path": out.fs_path,
+                "use_cache": out.use_cache,
+                "is_data_source": out.stage.is_data_source,
             }
             for out in repo.index.outs
             if not (out.is_metric or out.is_plot)
