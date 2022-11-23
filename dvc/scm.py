@@ -138,7 +138,13 @@ class TqdmGit(Tqdm):
 def clone(url: str, to_path: str, **kwargs):
     from scmrepo.exceptions import CloneError as InternalCloneError
 
+    from dvc.repo import Repo
     from dvc.repo.experiments.utils import fetch_all_exps
+
+    if url == ".":
+        repo_url = Repo.find_root()
+        if url != repo_url:
+            return clone(repo_url, to_path, **kwargs)
 
     with TqdmGit(desc=f"Cloning {os.path.basename(url)}") as pbar:
         try:
